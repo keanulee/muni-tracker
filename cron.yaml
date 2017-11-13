@@ -1,0 +1,4 @@
+cron:
+- description: fetch trains data
+  url: /fetch
+  schedule: every 1 mins

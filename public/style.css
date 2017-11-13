@@ -1,0 +1,34 @@
+body {
+  margin: 0;
+  font-family: sans-serif;
+}
+
+#map {
+  width: 100vw;
+  height: 100vh;
+}
+
+#controls {
+  position: fixed;
+  bottom: 20px;
+  left: 0;
+  right: 0;
+  text-align: center;
+}
+
+#controls > button {
+  width: 30px;
+  height: 30px;
+}
+
+#controls > select {
+  width: 100px;
+  height: 30px;
+}
+
+@media (min-width: 800px) {
+  .gm-style > div:first-child > div:first-child > div > div,
+  .gm-style > div:first-child > div > div > div {
+    transition: all 0.2s;
+  }
+}
