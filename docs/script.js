@@ -133,7 +133,7 @@ function initMap() {
 
   infowindow = new google.maps.InfoWindow();
 
-  fetch('https://firestore.googleapis.com/v1beta1/projects/go-dashboard-2ff4e/databases/(default)/documents/trains?pageSize=10&orderBy=time%20desc')
+  fetch('https://muni-tracker-api.keanulee.com/trains?pageSize=10&orderBy=time%20desc')
     .then(res => res.json())
     .then(data => {
       documents = data.documents;
@@ -212,7 +212,7 @@ function updateUI() {
 }
 
 function fetchNewestDocument() {
-  fetch('https://firestore.googleapis.com/v1beta1/projects/go-dashboard-2ff4e/databases/(default)/documents/trains?pageSize=1&orderBy=time%20desc')
+  fetch('https://muni-tracker-api.keanulee.com/trains?pageSize=1&orderBy=time%20desc')
     .then(res => res.json())
     .then(data => {
       const nextDocument = data.documents[0];
@@ -228,7 +228,7 @@ function fetchNewestDocument() {
 
 function fetchPreviousDocuments() {
   if (selectedIndex === documents.length - 1) {
-    fetch(`https://firestore.googleapis.com/v1beta1/projects/go-dashboard-2ff4e/databases/(default)/documents/trains?pageSize=30&orderBy=time%20desc&pageToken=${nextPageToken}`)
+    fetch(`https://muni-tracker-api.keanulee.com/trains?pageSize=30&orderBy=time%20desc&pageToken=${nextPageToken}`)
     .then(res => res.json())
     .then(data => {
       documents.push(...data.documents);

@@ -43,9 +43,19 @@ class FetchHandler(webapp2.RequestHandler):
         }
       }
     }))
-    self.response.headers['Content-Type'] = 'application/json'   
+    self.response.headers['content-type'] = 'application/json'
     self.response.write(json.dumps(trains))
+
+class TrainsHandler(webapp2.RequestHandler):
+  def get(self):
+    url = 'https://firestore.googleapis.com/v1beta1/projects/go-dashboard-2ff4e/databases/(default)/documents/trains?%s' % self.request.query_string
+    result = urllib2.urlopen(url)
+    self.response.headers['access-control-allow-origin'] = 'https://keanulee.github.io'
+    self.response.headers['cache-control'] = 'public, max-age=60'
+    self.response.headers['content-type'] = 'application/json'
+    self.response.write(result.read())
 
 app = webapp2.WSGIApplication([
   ('/fetch', FetchHandler),
+  ('/trains', TrainsHandler),
 ], debug=True)

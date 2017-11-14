@@ -6,15 +6,8 @@ handlers:
 - url: /fetch
   script: main.app
   secure: always
-
-- url: /
-  static_files: public/index.html
-  upload: public/index.html
-  secure: always
-
-- url: /(.*)
-  static_files: public/\1
-  upload: public/(.*)
+- url: /trains
+  script: main.app
 
 automatic_scaling:
   min_idle_instances: 1
