@@ -25,7 +25,7 @@ def formatValue(x):
 class FetchHandler(webapp2.RequestHandler):
   def get(self):
     now = time.time() * 1000
-    url = 'http://webservices.nextbus.com/service/publicJSONFeed?command=vehicleLocations&a=sf-muni&t=%d' % (now - 60000)
+    url = 'http://webservices.nextbus.com/service/publicJSONFeed?command=vehicleLocations&a=sf-muni'
     result = urllib2.urlopen(url)
     data = json.loads(result.read())
     trains = filter(lambda x: x['routeTag'] in ['J', 'KT', 'L', 'M', 'N'], data['vehicle'])
