@@ -3,59 +3,117 @@ import urllib2
 import time
 import json
 
+from wsgiref.handlers import format_date_time
+# from datetime import datetime
+# from time import mktime
+
 def formatValue(x):
-  result = {
-    'id': { 'stringValue': x['id'] },
-    'routeTag': { 'stringValue': x['routeTag'] },
-    'position': { 'geoPointValue': {
-      'latitude': x['lat'],
-      'longitude': x['lon'],
-    } },
-    'heading': { 'integerValue': int(x['heading']) },
-    'speedKmHr': { 'doubleValue': float(x['speedKmHr']) },
-    'predictable': { 'booleanValue': x['predictable'] == 'true' },
-    'secsSinceReport': { 'integerValue': int(x['secsSinceReport']) },
+  # result = {
+  #   'id': { 'stringValue': x['id'] },
+  #   'routeTag': { 'stringValue': x['routeTag'] },
+  #   'position': { 'geoPointValue': {
+  #     'latitude': x['lat'],
+  #     'longitude': x['lon'],
+  #   } },
+  #   'heading': { 'integerValue': int(x['heading']) },
+  #   'speedKmHr': { 'doubleValue': float(x['speedKmHr']) },
+  #   'predictable': { 'booleanValue': x['predictable'] == 'true' },
+  #   'secsSinceReport': { 'integerValue': int(x['secsSinceReport']) },
+  # }
+  # if 'dirTag' in x:
+  #   result['dirTag'] = { 'stringValue': x['dirTag'] }
+  # if 'leadingVehicleId' in x:
+  #   result['leadingVehicleId'] = { 'stringValue': x['leadingVehicleId'] }
+  # return { 'mapValue': { 'fields': result } }
+  return {
+    'arrayValue': {
+      'values': [
+        # { 'stringValue': x['id'] },
+        { 'stringValue': x['routeTag'] },
+        { 'geoPointValue': {
+          'latitude': x['lat'],
+          'longitude': x['lon'],
+        } },
+        { 'integerValue': int(x['heading']) },
+        { 'doubleValue': float(x['speedKmHr']) },
+        { 'booleanValue': x['predictable'] == 'true' },
+        { 'integerValue': int(x['secsSinceReport']) },
+        { 'stringValue': x['dirTag'] if 'dirTag' in x else '' },
+        { 'stringValue': x['leadingVehicleId'] if 'leadingVehicleId' in x else '' }
+      ]
+    }
   }
-  if 'dirTag' in x:
-    result['dirTag'] = { 'stringValue': x['dirTag'] }
-  if 'leadingVehicleId' in x:
-    result['leadingVehicleId'] = { 'stringValue': x['leadingVehicleId'] }
-  return { 'mapValue': { 'fields': result } }
+
+def flattenValue(x):
+  if 'mapValue' in x:
+    return {k: flattenValue(v) for k, v in x['mapValue']['fields'].items()}
+  if 'arrayValue' in x:
+    return map(flattenValue, x['arrayValue']['values'])
+  if 'geoPointValue' in x:
+    return [x['geoPointValue']['latitude'], x['geoPointValue']['longitude']]
+  if 'stringValue' in x:
+    return x['stringValue']
+  if 'integerValue' in x:
+    return int(x['integerValue'])
+  if 'doubleValue' in x:
+    return x['doubleValue']
+  if 'booleanValue' in x:
+    return x['booleanValue']
+
+def flattenDocument(doc):
+  return flattenValue({ 'mapValue': doc })
 
 class FetchHandler(webapp2.RequestHandler):
   def get(self):
-    now = time.time() * 1000
+    now = int(time.time())
     url = 'http://webservices.nextbus.com/service/publicJSONFeed?command=vehicleLocations&a=sf-muni'
     result = urllib2.urlopen(url)
     data = json.loads(result.read())
     trains = filter(lambda x: x['routeTag'] in ['J', 'KT', 'L', 'M', 'N'], data['vehicle'])
 
-    req = urllib2.Request('https://firestore.googleapis.com/v1beta1/projects/go-dashboard-2ff4e/databases/(default)/documents/trains?documentId=%d' % now)
+    req = urllib2.Request('https://firestore.googleapis.com/v1beta1/projects/go-dashboard-2ff4e/databases/(default)/documents/t?documentId=%d' % now)
     req.add_header('Content-Type', 'application/json')
 
     response = urllib2.urlopen(req, json.dumps({
       'fields': {
-        'time':  { 'integerValue': int(now) },
-        'trains': {
-          'arrayValue': {
-            'values': map(formatValue, trains)
+        'd':  { 'integerValue': now },
+        't': {
+          'mapValue': {
+            'fields': {v['id']: formatValue(v) for i, v in enumerate(trains)}
+            # 'arrayValue': {
+            #   'values': map(formatValue, trains)
+            # }
           }
         }
       }
-    }))
+    }, separators=(',', ':')))
     self.response.headers['content-type'] = 'application/json'
-    self.response.write(json.dumps(trains))
+    self.response.write(json.dumps(trains, separators=(',', ':')))
 
 class TrainsHandler(webapp2.RequestHandler):
   def get(self):
     url = 'https://firestore.googleapis.com/v1beta1/projects/go-dashboard-2ff4e/databases/(default)/documents/trains?%s' % self.request.query_string
     result = urllib2.urlopen(url)
-    self.response.headers['access-control-allow-origin'] = 'https://keanulee.github.io'
+    self.response.headers['access-control-allow-origin'] = '*' # 'https://keanulee.github.io'
     self.response.headers['cache-control'] = 'public, max-age=60'
     self.response.headers['content-type'] = 'application/json'
     self.response.write(result.read())
 
+class THandler(webapp2.RequestHandler):
+  def get(self):
+    url = 'https://firestore.googleapis.com/v1beta1/projects/go-dashboard-2ff4e/databases/(default)/documents/t?%s' % self.request.query_string
+    result = urllib2.urlopen(url)
+    data = json.loads(result.read())
+    data['documents'] = map(flattenDocument, data['documents'])
+    expires = data['documents'][0]['d'] + 60
+    self.response.headers['access-control-allow-origin'] = '*' # 'https://keanulee.github.io'
+    self.response.headers['cache-control'] = 'public'
+    self.response.headers['expires'] = format_date_time(expires)
+    self.response.headers['content-type'] = 'application/json'
+    self.response.write(json.dumps(data, separators=(',', ':')))
+
 app = webapp2.WSGIApplication([
   ('/fetch', FetchHandler),
   ('/trains', TrainsHandler),
+  ('/t', THandler),
 ], debug=True)

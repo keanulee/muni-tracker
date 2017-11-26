@@ -133,7 +133,7 @@ function initMap() {
 
   infowindow = new google.maps.InfoWindow();
 
-  fetch('https://muni-tracker-api.keanulee.com/trains?pageSize=10&orderBy=time%20desc')
+  fetch('https://muni-tracker-api.keanulee.com/t?pageSize=10&orderBy=d%20desc')
     .then(res => res.json())
     .then(data => {
       documents = data.documents;
@@ -147,7 +147,7 @@ function initMap() {
 const markers = {};
 
 function updateUI() {
-  const trains = documents[selectedIndex].fields.trains.arrayValue.values;
+  const trains = documents[selectedIndex].t;
   const routeColors = {
     'J': '#cc6600',
     'KT': '#cc0033',
@@ -157,10 +157,12 @@ function updateUI() {
   };
   const oldMarkers = Object.assign({}, markers);
 
-  trains.forEach(d => {
-    const fields = d.mapValue.fields;
-    const id = fields.id.stringValue;
-    const coords = fields.position.geoPointValue;
+  // trains.forEach(d => {
+  for (let id in trains) {
+    const t = trains[id];
+    // const fields = d.mapValue.fields;
+    // const id = fields.id.stringValue;
+    // const coords = fields.position.geoPointValue;
     
     let marker = oldMarkers[id];
     if (marker) {
@@ -184,39 +186,39 @@ function updateUI() {
     }
 
     marker.setPosition({
-      lat: coords.latitude,
-      lng: coords.longitude
+      lat: t[1][0],
+      lng: t[1][1]
     });
     marker.setIcon({
       anchor: { x: -1, y: 0 },
-      fillColor: routeColors[fields.routeTag.stringValue] || '#000',
-      fillOpacity: fields.leadingVehicleId ? 0 : 0.5,
-      strokeColor: routeColors[fields.routeTag.stringValue] || '#000',
-      strokeOpacity: fields.leadingVehicleId ? 0.5 : 1,
+      fillColor: routeColors[t[0]] || '#000',
+      fillOpacity: t[7] ? 0 : 0.5,
+      strokeColor: routeColors[t[0]] || '#000',
+      strokeOpacity: t[7] ? 0.5 : 1,
       path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
       scale: 2,
-      rotation: parseInt(fields.heading.integerValue, 10)
+      rotation: t[2]
     });
-  });
+  }
 
   for (let id in oldMarkers) {
     oldMarkers[id].setMap(null);
     delete markers[id];
   }
 
-  timePicker.innerHTML = documents.map(t => {
-    const date = new Date(parseInt(t.fields.time.integerValue,10));
+  timePicker.innerHTML = documents.map(doc => {
+    const date = new Date(doc.d * 1000);
     return `<option>${date.toTimeString().slice(0,5)}</option>`;
   });
   timePicker.selectedIndex = selectedIndex;
 }
 
 function fetchNewestDocument() {
-  fetch('https://muni-tracker-api.keanulee.com/trains?pageSize=1&orderBy=time%20desc')
+  fetch('https://muni-tracker-api.keanulee.com/t?pageSize=1&orderBy=d%20desc')
     .then(res => res.json())
     .then(data => {
       const nextDocument = data.documents[0];
-      if (nextDocument.name !== documents[0].name) {
+      if (nextDocument.d !== documents[0].d) {
         documents.unshift(nextDocument);
         if (selectedIndex !== 0) {
           ++selectedIndex;
@@ -228,7 +230,7 @@ function fetchNewestDocument() {
 
 function fetchPreviousDocuments() {
   if (selectedIndex === documents.length - 1) {
-    fetch(`https://muni-tracker-api.keanulee.com/trains?pageSize=30&orderBy=time%20desc&pageToken=${nextPageToken}`)
+    fetch(`https://muni-tracker-api.keanulee.com/t?pageSize=30&orderBy=d%20desc&pageToken=${nextPageToken}`)
     .then(res => res.json())
     .then(data => {
       documents.push(...data.documents);

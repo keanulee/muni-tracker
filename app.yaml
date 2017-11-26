@@ -8,6 +8,8 @@ handlers:
   secure: always
 - url: /trains
   script: main.app
+- url: /t
+  script: main.app
 
 automatic_scaling:
   min_idle_instances: 1
