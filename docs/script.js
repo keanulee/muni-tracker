@@ -2,11 +2,12 @@
 
 let map;
 let infowindow;
-let documents;
+let documents = [];
 let selectedIndex = 0;
 let nextPageToken;
-
-const timePicker = document.getElementById('timePicker');
+let timePicker;
+let fetchTimer;
+let buttonTimer;
 
 function initMap() {
   map = new google.maps.Map(document.getElementById('map'), {
@@ -15,6 +16,8 @@ function initMap() {
       lat: 37.7614,
       lng: -122.4487
     },
+    mapTypeControl: false,
+    streetViewControl: false,
     styles: [
       {
         featureType: 'water',
@@ -131,6 +134,39 @@ function initMap() {
     ]
   });
 
+  const backButton = document.createElement('button');
+  backButton.innerText = '<';
+  backButton.addEventListener('mousedown', backButtonDownHandler);
+  backButton.addEventListener('mouseup', buttonUpHandler);
+  backButton.addEventListener('touchstart', backButtonDownHandler);
+  backButton.addEventListener('touchend', buttonUpHandler);
+
+  const forwardButton = document.createElement('button');
+  forwardButton.innerText = '>';
+  forwardButton.addEventListener('mousedown', forwardButtonDownHandler);
+  forwardButton.addEventListener('mouseup', buttonUpHandler);
+  forwardButton.addEventListener('touchstart', forwardButtonDownHandler);
+  forwardButton.addEventListener('touchend', buttonUpHandler);
+
+  timePicker = document.createElement('select');
+  timePicker.addEventListener('change', timePickerChangeHandler);
+  
+  const controls = document.createElement('div');
+  controls.classList.add('controls');
+  controls.appendChild(backButton);
+  controls.appendChild(timePicker);
+  controls.appendChild(forwardButton);
+
+  map.controls[google.maps.ControlPosition.BOTTOM_CENTER].push(controls);
+
+  const infoButton = document.createElement('button');
+  infoButton.classList.add('info');
+  infoButton.innerText = 'i';
+  infoButton.addEventListener('click', () => {
+    window.alert('Homescreen icon made by Freepik from www.flaticon.com is licensed by CC 3.0 BY');
+  });
+  map.controls[google.maps.ControlPosition.LEFT_BOTTOM].push(infoButton);
+
   infowindow = new google.maps.InfoWindow();
 
   fetch('https://muni-tracker-api.keanulee.com/t?pageSize=10&orderBy=d%20desc')
@@ -141,29 +177,24 @@ function initMap() {
       updateUI();
     });
 
-  window.setInterval(fetchNewestDocument, 60000);
+  fetchTimer = window.setInterval(fetchNewestDocument, 60000);
 }
 
 const markers = {};
+const routeColors = {
+  'J': '#cc6600',
+  'KT': '#cc0033',
+  'L': '#660099',
+  'M': '#006633',
+  'N': '#003399'
+};
 
 function updateUI() {
   const trains = documents[selectedIndex].t;
-  const routeColors = {
-    'J': '#cc6600',
-    'KT': '#cc0033',
-    'L': '#660099',
-    'M': '#006633',
-    'N': '#003399'
-  };
   const oldMarkers = Object.assign({}, markers);
 
-  // trains.forEach(d => {
   for (let id in trains) {
     const t = trains[id];
-    // const fields = d.mapValue.fields;
-    // const id = fields.id.stringValue;
-    // const coords = fields.position.geoPointValue;
-    
     let marker = oldMarkers[id];
     if (marker) {
       delete oldMarkers[id];
@@ -240,26 +271,48 @@ function fetchPreviousDocuments() {
   }
 }
 
-timePicker.addEventListener('change', () => {
-  selectedIndex = timePicker.selectedIndex;
-  updateUI();
-  fetchPreviousDocuments();
-});
-
-document.getElementById('backButton').addEventListener('click', () => {
+function moveBack() {
   if (selectedIndex < documents.length - 1) {
     ++selectedIndex;
     updateUI();
     fetchPreviousDocuments();
   }
-});
+}
 
-document.getElementById('forwardButton').addEventListener('click', () => {
+function moveForward() {
   if (selectedIndex > 0) {
     --selectedIndex;
     updateUI();
+  } else {
+    window.clearInterval(buttonTimer);
+    window.clearInterval(fetchTimer);
+    fetchNewestDocument();
+    fetchTimer = window.setInterval(fetchNewestDocument, 60000);
   }
-});
+}
+
+function backButtonDownHandler(e) {
+  e.preventDefault();
+  buttonTimer = window.setInterval(moveBack, 500);
+  moveBack();
+}
+
+function forwardButtonDownHandler(e) {
+  e.preventDefault();
+  buttonTimer = window.setInterval(moveForward, 500);
+  moveForward();
+}
+
+function buttonUpHandler(e) {
+  e.preventDefault();
+  window.clearInterval(buttonTimer);
+}
+
+function timePickerChangeHandler() {
+  selectedIndex = timePicker.selectedIndex;
+  updateUI();
+  fetchPreviousDocuments();
+}
 
 if ('serviceWorker' in window.navigator) {
   window.addEventListener('load', function() {
