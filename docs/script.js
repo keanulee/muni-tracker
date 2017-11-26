@@ -260,3 +260,9 @@ document.getElementById('forwardButton').addEventListener('click', () => {
     updateUI();
   }
 });
+
+if ('serviceWorker' in window.navigator) {
+  window.addEventListener('load', function() {
+    window.navigator.serviceWorker.register('sw.js')
+  });
+}
