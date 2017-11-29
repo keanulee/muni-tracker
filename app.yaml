@@ -6,8 +6,6 @@ handlers:
 - url: /fetch
   script: main.app
   secure: always
-- url: /trains
-  script: main.app
 - url: /t
   script: main.app
 

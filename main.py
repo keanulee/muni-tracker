@@ -2,33 +2,12 @@ import webapp2
 import urllib2
 import time
 import json
-
 from wsgiref.handlers import format_date_time
-# from datetime import datetime
-# from time import mktime
 
 def formatValue(x):
-  # result = {
-  #   'id': { 'stringValue': x['id'] },
-  #   'routeTag': { 'stringValue': x['routeTag'] },
-  #   'position': { 'geoPointValue': {
-  #     'latitude': x['lat'],
-  #     'longitude': x['lon'],
-  #   } },
-  #   'heading': { 'integerValue': int(x['heading']) },
-  #   'speedKmHr': { 'doubleValue': float(x['speedKmHr']) },
-  #   'predictable': { 'booleanValue': x['predictable'] == 'true' },
-  #   'secsSinceReport': { 'integerValue': int(x['secsSinceReport']) },
-  # }
-  # if 'dirTag' in x:
-  #   result['dirTag'] = { 'stringValue': x['dirTag'] }
-  # if 'leadingVehicleId' in x:
-  #   result['leadingVehicleId'] = { 'stringValue': x['leadingVehicleId'] }
-  # return { 'mapValue': { 'fields': result } }
   return {
     'arrayValue': {
       'values': [
-        # { 'stringValue': x['id'] },
         { 'stringValue': x['routeTag'] },
         { 'geoPointValue': {
           'latitude': x['lat'],
@@ -70,34 +49,27 @@ class FetchHandler(webapp2.RequestHandler):
     result = urllib2.urlopen(url)
     data = json.loads(result.read())
     trains = filter(lambda x: x['routeTag'] in ['J', 'KT', 'L', 'M', 'N'], data['vehicle'])
-
-    req = urllib2.Request('https://firestore.googleapis.com/v1beta1/projects/go-dashboard-2ff4e/databases/(default)/documents/t?documentId=%d' % now)
-    req.add_header('Content-Type', 'application/json')
-
-    response = urllib2.urlopen(req, json.dumps({
+    body = json.dumps({
       'fields': {
         'd':  { 'integerValue': now },
         't': {
           'mapValue': {
             'fields': {v['id']: formatValue(v) for i, v in enumerate(trains)}
-            # 'arrayValue': {
-            #   'values': map(formatValue, trains)
-            # }
           }
         }
       }
-    }, separators=(',', ':')))
-    self.response.headers['content-type'] = 'application/json'
-    self.response.write(json.dumps(trains, separators=(',', ':')))
+    }, separators=(',', ':'))
 
-class TrainsHandler(webapp2.RequestHandler):
-  def get(self):
-    url = 'https://firestore.googleapis.com/v1beta1/projects/go-dashboard-2ff4e/databases/(default)/documents/trains?%s' % self.request.query_string
-    result = urllib2.urlopen(url)
-    self.response.headers['access-control-allow-origin'] = '*' # 'https://keanulee.github.io'
-    self.response.headers['cache-control'] = 'public, max-age=60'
+    req = urllib2.Request('https://firestore.googleapis.com/v1beta1/projects/sfmuni-tracker/databases/(default)/documents/t?documentId=%d' % now)
+    req.add_header('Content-Type', 'application/json')
+    urllib2.urlopen(req, body)
+
+    req = urllib2.Request('https://firestore.googleapis.com/v1beta1/projects/go-dashboard-2ff4e/databases/(default)/documents/t?documentId=%d' % now)
+    req.add_header('Content-Type', 'application/json')
+    urllib2.urlopen(req, body)
+
     self.response.headers['content-type'] = 'application/json'
-    self.response.write(result.read())
+    self.response.write(body)
 
 class THandler(webapp2.RequestHandler):
   def get(self):
@@ -106,7 +78,7 @@ class THandler(webapp2.RequestHandler):
     data = json.loads(result.read())
     data['documents'] = map(flattenDocument, data['documents'])
     expires = data['documents'][0]['d'] + 60
-    self.response.headers['access-control-allow-origin'] = '*' # 'https://keanulee.github.io'
+    self.response.headers['access-control-allow-origin'] = 'https://keanulee.github.io'
     self.response.headers['cache-control'] = 'public'
     self.response.headers['expires'] = format_date_time(expires)
     self.response.headers['content-type'] = 'application/json'
@@ -114,6 +86,5 @@ class THandler(webapp2.RequestHandler):
 
 app = webapp2.WSGIApplication([
   ('/fetch', FetchHandler),
-  ('/trains', TrainsHandler),
   ('/t', THandler),
 ], debug=True)
