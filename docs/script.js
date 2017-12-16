@@ -1,11 +1,14 @@
 'use strict';
 
+const host = 'https://muni-tracker-api.keanulee.com';
+
 let map;
 let infowindow;
 let documents = [];
 let selectedIndex = 0;
 let nextPageToken;
 let timePicker;
+let viewSelect;
 let fetchTimer;
 let buttonTimer;
 
@@ -134,6 +137,18 @@ function initMap() {
     ]
   });
 
+  viewSelect = document.createElement('select');
+  viewSelect.multiple = true;
+  viewSelect.innerHTML = `
+  <option selected>Positions</option>
+  <option>Traffic</option>`;
+  viewSelect.addEventListener('change', updateUI);
+
+  const topControls = document.createElement('div');
+  topControls.classList.add('controls');
+  topControls.appendChild(viewSelect);
+  map.controls[google.maps.ControlPosition.LEFT_TOP].push(topControls);
+
   const backButton = document.createElement('button');
   backButton.innerText = '<';
   backButton.addEventListener('mousedown', backButtonDownHandler);
@@ -151,13 +166,12 @@ function initMap() {
   timePicker = document.createElement('select');
   timePicker.addEventListener('change', timePickerChangeHandler);
   
-  const controls = document.createElement('div');
-  controls.classList.add('controls');
-  controls.appendChild(backButton);
-  controls.appendChild(timePicker);
-  controls.appendChild(forwardButton);
-
-  map.controls[google.maps.ControlPosition.BOTTOM_CENTER].push(controls);
+  const bottomControls = document.createElement('div');
+  bottomControls.classList.add('controls');
+  bottomControls.appendChild(backButton);
+  bottomControls.appendChild(timePicker);
+  bottomControls.appendChild(forwardButton);
+  map.controls[google.maps.ControlPosition.BOTTOM_CENTER].push(bottomControls);
 
   const infoButton = document.createElement('button');
   infoButton.classList.add('info');
@@ -169,7 +183,7 @@ function initMap() {
 
   infowindow = new google.maps.InfoWindow();
 
-  fetch('https://muni-tracker-api.keanulee.com/t?pageSize=10&orderBy=d%20desc')
+  fetch(`${host}/t?pageSize=10&orderBy=d%20desc`)
     .then(res => res.json())
     .then(data => {
       documents = data.documents;
@@ -181,6 +195,7 @@ function initMap() {
 }
 
 const markers = {};
+const lines = {};
 const routeColors = {
   'J': '#cc6600',
   'KT': '#cc0033',
@@ -191,7 +206,9 @@ const routeColors = {
 
 function updateUI() {
   const trains = documents[selectedIndex].t;
+  const prevTrains = documents[selectedIndex + 1] ? documents[selectedIndex + 1].t : {};
   const oldMarkers = Object.assign({}, markers);
+  const oldLines = Object.assign({}, lines);
 
   for (let id in trains) {
     const t = trains[id];
@@ -216,25 +233,63 @@ function updateUI() {
       });
     }
 
-    marker.setPosition({
-      lat: t[1][0],
-      lng: t[1][1]
-    });
-    marker.setIcon({
-      anchor: { x: -1, y: 0 },
-      fillColor: routeColors[t[0]] || '#000',
-      fillOpacity: t[7] ? 0 : 0.5,
-      strokeColor: routeColors[t[0]] || '#000',
-      strokeOpacity: t[7] ? 0.5 : 1,
-      path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-      scale: 2,
-      rotation: t[2]
-    });
+    if (viewSelect.children[0].selected) {
+      marker.setOptions({
+        position: { lat: t[1][0], lng: t[1][1] },
+        icon: {
+          anchor: { x: -1, y: 0 },
+          fillColor: routeColors[t[0]] || '#000',
+          fillOpacity: t[7] ? 0 : 0.5,
+          strokeColor: routeColors[t[0]] || '#000',
+          strokeOpacity: t[7] ? 0.5 : 1,
+          path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+          scale: 2,
+          rotation: t[2]
+        },
+        visible: true
+      });
+    } else {
+      marker.setVisible(false);
+    }
+
+    let line = oldLines[id];
+    if (line) {
+      delete oldLines[id];
+    } else {
+      lines[id] = line = new google.maps.Polyline({
+        map: map,
+        strokeOpacity: 0.5
+      });
+    }
+
+    const prevT = prevTrains[id];
+    if (viewSelect.children[1].selected && prevT) {
+      const path = [
+        new google.maps.LatLng({ lat: prevT[1][0], lng: prevT[1][1] }),
+        new google.maps.LatLng({ lat: t[1][0], lng: t[1][1] })
+      ];
+      const heading = google.maps.geometry.spherical.computeHeading(path[0], path[1]);
+      const distance = google.maps.geometry.spherical.computeLength(path);
+      const time = prevT[5] + 60 - t[5];
+      const speedFactor = Math.min(7.5, distance/time);
+      line.setOptions({
+        path: path.map(point => google.maps.geometry.spherical.computeOffset(point, 20, (heading + 90) % 360)),
+        strokeColor: `hsl(${speedFactor * 20}, 100%, 40%)`,
+        strokeWeight: Math.max(4, Math.min(7.5 / speedFactor, 10)),
+        visible: true
+      });
+    } else {
+      line.setVisible(false);
+    }
   }
 
   for (let id in oldMarkers) {
     oldMarkers[id].setMap(null);
     delete markers[id];
+  }
+  for (let id in oldLines) {
+    oldLines[id].setMap(null);
+    delete lines[id];
   }
 
   timePicker.innerHTML = documents.map(doc => {
@@ -245,7 +300,7 @@ function updateUI() {
 }
 
 function fetchNewestDocument() {
-  fetch('https://muni-tracker-api.keanulee.com/t?pageSize=1&orderBy=d%20desc')
+  fetch(`${host}/t?pageSize=1&orderBy=d%20desc`)
     .then(res => res.json())
     .then(data => {
       const nextDocument = data.documents[0];
@@ -261,7 +316,7 @@ function fetchNewestDocument() {
 
 function fetchPreviousDocuments() {
   if (selectedIndex === documents.length - 1) {
-    fetch(`https://muni-tracker-api.keanulee.com/t?pageSize=30&orderBy=d%20desc&pageToken=${nextPageToken}`)
+    fetch(`${host}/t?pageSize=30&orderBy=d%20desc&pageToken=${nextPageToken}`)
     .then(res => res.json())
     .then(data => {
       documents.push(...data.documents);
