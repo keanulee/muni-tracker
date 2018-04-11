@@ -201,7 +201,8 @@ const routeColors = {
   'KT': '#cc0033',
   'L': '#660099',
   'M': '#006633',
-  'N': '#003399'
+  'N': '#003399',
+  'S': '#ffcc00'
 };
 
 function updateUI() {
