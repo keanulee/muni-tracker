@@ -194,7 +194,6 @@ function initMap() {
   fetchTimer = window.setInterval(fetchNewestDocument, 60000);
 }
 
-const markers = {};
 const lines = {};
 const routeColors = {
   'J': '#cc6600',
@@ -208,40 +207,9 @@ const routeColors = {
 function updateUI() {
   const trains = documents[selectedIndex].t;
   const prevTrains = documents[selectedIndex + 1] ? documents[selectedIndex + 1].t : {};
-  const oldMarkers = Object.assign({}, markers);
   const oldLines = Object.assign({}, lines);
 
   for (let id in trains) {
-    const t = trains[id];
-    let marker = oldMarkers[id];
-    if (marker) {
-      delete oldMarkers[id];
-    } else {
-      markers[id] = marker = new google.maps.Marker({
-        anchorPoint: { x: 0, y: -5 },
-        map: map,
-        title: id,
-        label: {
-          color: 'orange',
-          fontSize: '40px',
-          text: id[0] === '2' ? '*' : ' '
-        },
-        icon: {
-          anchor: { x: 10, y: 10 },
-          size: { width: 20, height: 20 },
-          url: 'https://maps.gstatic.com/mapfiles/transparent.png'
-        }
-      });
-    
-      marker.addListener('click', function() {
-        infowindow.setContent(id);
-        infowindow.open(map, marker);
-      });
-    }
-
-    const currentPosition = new google.maps.LatLng({ lat: t[1][0], lng: t[1][1] });
-    marker.setPosition(currentPosition);
-
     let line = oldLines[id];
     if (line) {
       delete oldLines[id];
@@ -252,6 +220,8 @@ function updateUI() {
       });
     }
 
+    const t = trains[id];
+    const currentPosition = new google.maps.LatLng({ lat: t[1][0], lng: t[1][1] });
     const positionsSelected = viewSelect.children[0].selected;
     const trafficSelected = viewSelect.children[1].selected;
     const prevT = prevTrains[id];
@@ -290,7 +260,7 @@ function updateUI() {
             fillOpacity: t[7] ? 0 : 0.5,
             strokeColor: routeColors[t[0]] || '#000',
             strokeOpacity: t[7] ? 0.5 : 1,
-            path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+            path: id[0] === '2' ? 'M -2,5 0,0 2,5 M 6,-3.5 6,3.5 M 3,-2 9,2 M 9,-2 3,2' : google.maps.SymbolPath.FORWARD_OPEN_ARROW,
             scale: 2,
             rotation: t[2] - heading
           }
@@ -299,10 +269,6 @@ function updateUI() {
     });
   }
 
-  for (let id in oldMarkers) {
-    oldMarkers[id].setMap(null);
-    delete markers[id];
-  }
   for (let id in oldLines) {
     oldLines[id].setMap(null);
     delete lines[id];
