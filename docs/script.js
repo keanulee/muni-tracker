@@ -218,13 +218,18 @@ function updateUI() {
       delete oldMarkers[id];
     } else {
       markers[id] = marker = new google.maps.Marker({
+        anchorPoint: { x: 0, y: -5 },
         map: map,
         title: id,
         label: {
           color: 'orange',
           fontSize: '40px',
-          fontWeight: 'bold',
           text: id[0] === '2' ? '*' : ' '
+        },
+        icon: {
+          anchor: { x: 10, y: 10 },
+          size: { width: 20, height: 20 },
+          url: 'https://maps.gstatic.com/mapfiles/transparent.png'
         }
       });
     
@@ -234,24 +239,8 @@ function updateUI() {
       });
     }
 
-    if (viewSelect.children[0].selected) {
-      marker.setOptions({
-        position: { lat: t[1][0], lng: t[1][1] },
-        icon: {
-          anchor: { x: -1, y: 0 },
-          fillColor: routeColors[t[0]] || '#000',
-          fillOpacity: t[7] ? 0 : 0.5,
-          strokeColor: routeColors[t[0]] || '#000',
-          strokeOpacity: t[7] ? 0.5 : 1,
-          path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-          scale: 2,
-          rotation: t[2]
-        },
-        visible: true
-      });
-    } else {
-      marker.setVisible(false);
-    }
+    const currentPosition = new google.maps.LatLng({ lat: t[1][0], lng: t[1][1] });
+    marker.setPosition(currentPosition);
 
     let line = oldLines[id];
     if (line) {
@@ -263,25 +252,51 @@ function updateUI() {
       });
     }
 
+    const positionsSelected = viewSelect.children[0].selected;
+    const trafficSelected = viewSelect.children[1].selected;
     const prevT = prevTrains[id];
-    if (viewSelect.children[1].selected && prevT) {
-      const path = [
-        new google.maps.LatLng({ lat: prevT[1][0], lng: prevT[1][1] }),
-        new google.maps.LatLng({ lat: t[1][0], lng: t[1][1] })
+    let heading = t[2];
+    let path;
+    let strokeColor = 'transparent';
+    let strokeWeight = 4;
+    if (trafficSelected && prevT) {
+      const prevPosition = new google.maps.LatLng({ lat: prevT[1][0], lng: prevT[1][1] });
+      heading = google.maps.geometry.spherical.computeHeading(prevPosition, currentPosition);
+      path = [
+        prevPosition,
+        currentPosition
       ];
-      const heading = google.maps.geometry.spherical.computeHeading(path[0], path[1]);
+
       const distance = google.maps.geometry.spherical.computeLength(path);
       const time = prevT[5] + 60 - t[5];
       const speedFactor = Math.min(7.5, distance/time);
-      line.setOptions({
-        path: path.map(point => google.maps.geometry.spherical.computeOffset(point, 20, (heading + 90) % 360)),
-        strokeColor: `hsl(${speedFactor * 20}, 100%, 40%)`,
-        strokeWeight: Math.max(4, Math.min(7.5 / speedFactor, 10)),
-        visible: true
-      });
+      strokeColor = `hsl(${speedFactor * 20}, 100%, 40%)`;
+      strokeWeight = Math.max(4, Math.min(7.5 / speedFactor, 10));
     } else {
-      line.setVisible(false);
+      path = [
+        google.maps.geometry.spherical.computeOffset(currentPosition, 20, (heading + 180) % 360),
+        currentPosition
+      ];
     }
+
+    line.setOptions({
+      path: path.map(point => google.maps.geometry.spherical.computeOffset(point, 20, (heading + 90) % 360)),
+      strokeColor: strokeColor,
+      strokeWeight: strokeWeight,
+      icons: positionsSelected ? [
+        {
+          icon: {
+            fillColor: routeColors[t[0]] || '#000',
+            fillOpacity: t[7] ? 0 : 0.5,
+            strokeColor: routeColors[t[0]] || '#000',
+            strokeOpacity: t[7] ? 0.5 : 1,
+            path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+            scale: 2,
+            rotation: t[2] - heading
+          }
+        }
+      ] : []
+    });
   }
 
   for (let id in oldMarkers) {

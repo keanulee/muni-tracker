@@ -48,9 +48,3 @@ body {
   width: 20px;
   height: 20px;
 }
-
-@media (min-width: 800px) {
-  .gm-style > div:first-child > div > div > div {
-    transition: all 0.2s;
-  }
-}
