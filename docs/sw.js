@@ -21,15 +21,15 @@ importScripts("https://storage.googleapis.com/workbox-cdn/releases/3.0.1/workbox
 self.__precacheManifest = [
   {
     "url": "index.html",
-    "revision": "4093baaa3d88375f5cb9506d1767e67e"
+    "revision": "1f67a972ba70e48033d68abb411c5637"
   },
   {
     "url": "script.js",
-    "revision": "fab732afbab6f7ac8c0e64e094582820"
+    "revision": "c2e00f2043e365ce2da6973a57ef281a"
   },
   {
     "url": "style.css",
-    "revision": "3c2b5256b8ffbbfc6a2437b8b6c28eb7"
+    "revision": "1616302aca460bb2598deb0abe5adb29"
   }
 ].concat(self.__precacheManifest || []);
 workbox.precaching.suppressWarnings();

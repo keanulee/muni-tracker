@@ -7,7 +7,6 @@ let infowindow;
 let documents = [];
 let selectedIndex = 0;
 let nextPageToken;
-let timePicker;
 let viewSelect;
 let fetchTimer;
 let buttonTimer;
@@ -149,37 +148,21 @@ function initMap() {
   topControls.appendChild(viewSelect);
   map.controls[google.maps.ControlPosition.LEFT_TOP].push(topControls);
 
-  const backButton = document.createElement('button');
-  backButton.innerText = '<';
   backButton.addEventListener('mousedown', backButtonDownHandler);
   backButton.addEventListener('mouseup', buttonUpHandler);
   backButton.addEventListener('touchstart', backButtonDownHandler);
   backButton.addEventListener('touchend', buttonUpHandler);
 
-  const forwardButton = document.createElement('button');
-  forwardButton.innerText = '>';
   forwardButton.addEventListener('mousedown', forwardButtonDownHandler);
   forwardButton.addEventListener('mouseup', buttonUpHandler);
   forwardButton.addEventListener('touchstart', forwardButtonDownHandler);
   forwardButton.addEventListener('touchend', buttonUpHandler);
 
-  timePicker = document.createElement('select');
   timePicker.addEventListener('change', timePickerChangeHandler);
-  
-  const bottomControls = document.createElement('div');
-  bottomControls.classList.add('controls');
-  bottomControls.appendChild(backButton);
-  bottomControls.appendChild(timePicker);
-  bottomControls.appendChild(forwardButton);
-  map.controls[google.maps.ControlPosition.BOTTOM_CENTER].push(bottomControls);
 
-  const infoButton = document.createElement('button');
-  infoButton.classList.add('info');
-  infoButton.innerText = 'i';
   infoButton.addEventListener('click', () => {
     window.alert('Homescreen icon made by Freepik from www.flaticon.com is licensed by CC 3.0 BY');
   });
-  map.controls[google.maps.ControlPosition.LEFT_BOTTOM].push(infoButton);
 
   infowindow = new google.maps.InfoWindow();
 
