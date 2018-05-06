@@ -166,7 +166,7 @@ function initMap() {
 
   infowindow = new google.maps.InfoWindow();
 
-  fetch(`${host}/t?pageSize=10&orderBy=d%20desc`)
+  fetch(`${host}/t?pageSize=30&orderBy=d%20desc`)
     .then(res => res.json())
     .then(data => {
       documents = data.documents;
@@ -265,14 +265,22 @@ function updateUI() {
 }
 
 function fetchNewestDocument() {
-  fetch(`${host}/t?pageSize=1&orderBy=d%20desc`)
+  fetch(`${host}/t?pageSize=30&orderBy=d%20desc`)
     .then(res => res.json())
     .then(data => {
-      const nextDocument = data.documents[0];
-      if (nextDocument.d !== documents[0].d) {
-        documents.unshift(nextDocument);
+      const documentsToAdd = [];
+      for (let i = 0; i < data.documents.length; i++) {
+        const doc = data.documents[i];
+        if (doc.d > documents[0].d) {
+          documentsToAdd.push(doc);
+        } else {
+          break;
+        }
+      }
+      if (documentsToAdd.length) {
+        documents.unshift.apply(documents, documentsToAdd);
         if (selectedIndex !== 0) {
-          ++selectedIndex;
+          selectedIndex += documentsToAdd.length;
         }
         updateUI();
       }
@@ -307,7 +315,7 @@ function moveForward() {
     window.clearInterval(buttonTimer);
     window.clearInterval(fetchTimer);
     fetchNewestDocument();
-    fetchTimer = window.setInterval(fetchNewestDocument, 60000);
+    fetchTimer = window.setInterval(fetchNewestDocument, 30000);
   }
 }
 

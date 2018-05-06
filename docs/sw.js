@@ -25,7 +25,7 @@ self.__precacheManifest = [
   },
   {
     "url": "script.js",
-    "revision": "c2e00f2043e365ce2da6973a57ef281a"
+    "revision": "755c92713810a6857c9a6b7de3494df9"
   },
   {
     "url": "style.css",
