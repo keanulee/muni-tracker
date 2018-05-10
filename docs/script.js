@@ -174,7 +174,7 @@ function initMap() {
       updateUI();
     });
 
-  fetchTimer = window.setInterval(fetchNewestDocument, 60000);
+  fetchTimer = window.setInterval(fetchLiveSnapshot, 30000);
 }
 
 const lines = {};
@@ -188,8 +188,10 @@ const routeColors = {
 };
 
 function updateUI() {
-  const trains = documents[selectedIndex].t;
-  const prevTrains = documents[selectedIndex + 1] ? documents[selectedIndex + 1].t : {};
+  const document = documents[selectedIndex];
+  const prevDocument = documents[selectedIndex + 1];
+  const trains = document.t;
+  const prevTrains = prevDocument ? prevDocument.t : {};
   const oldLines = Object.assign({}, lines);
 
   for (let id in trains) {
@@ -214,17 +216,23 @@ function updateUI() {
     let strokeWeight = 4;
     if (trafficSelected && prevT) {
       const prevPosition = new google.maps.LatLng({ lat: prevT[1][0], lng: prevT[1][1] });
-      heading = google.maps.geometry.spherical.computeHeading(prevPosition, currentPosition);
       path = [
         prevPosition,
         currentPosition
       ];
-
       const distance = google.maps.geometry.spherical.computeLength(path);
-      const time = prevT[5] + 60 - t[5];
-      const speedFactor = Math.min(7.5, distance/time);
-      strokeColor = `hsl(${speedFactor * 20}, 100%, 40%)`;
-      strokeWeight = Math.max(4, Math.min(7.5 / speedFactor, 10));
+      if (distance > 0) {
+        const time = document.d - t[5] - prevDocument.d + prevT[5];
+        const speedFactor = Math.min(7.5, distance/time);
+        strokeColor = `hsl(${speedFactor * 20}, 100%, 40%)`;
+        strokeWeight = Math.max(4, Math.min(7.5 / speedFactor, 10));
+        heading = google.maps.geometry.spherical.computeHeading(prevPosition, currentPosition);
+      } else {
+        path = [
+          google.maps.geometry.spherical.computeOffset(currentPosition, 20, (heading + 180) % 360),
+          currentPosition
+        ];
+      }
     } else {
       path = [
         google.maps.geometry.spherical.computeOffset(currentPosition, 20, (heading + 180) % 360),
@@ -259,28 +267,36 @@ function updateUI() {
 
   timePicker.innerHTML = documents.map(doc => {
     const date = new Date(doc.d * 1000);
-    return `<option>${date.toTimeString().slice(0,5)}</option>`;
+    return `<option>${date.toTimeString().slice(0,8)}</option>`;
   });
   timePicker.selectedIndex = selectedIndex;
 }
 
-function fetchNewestDocument() {
-  fetch(`${host}/t?pageSize=30&orderBy=d%20desc`)
+function fetchLiveSnapshot() {
+  fetch('https://test.nextbus.com/service/publicJSONFeed?command=vehicleLocations&a=sf-muni')
     .then(res => res.json())
     .then(data => {
-      const documentsToAdd = [];
-      for (let i = 0; i < data.documents.length; i++) {
-        const doc = data.documents[i];
-        if (doc.d > documents[0].d) {
-          documentsToAdd.push(doc);
-        } else {
-          break;
-        }
-      }
-      if (documentsToAdd.length) {
-        documents.unshift.apply(documents, documentsToAdd);
+      if (data.vehicle) {
+        documents.unshift({
+          d: Math.round(parseInt(data.lastTime.time, 10) / 1000),
+          t: data.vehicle.reduce((t, v) => {
+            if (routeColors[v.routeTag]) {
+              t[v.id] = [
+                v.routeTag, 
+                [parseFloat(v.lat), parseFloat(v.lon)],
+                parseInt(v.heading, 10),
+                parseFloat(v.speedKmHr),
+                v.predictable === 'true',
+                parseInt(v.secsSinceReport, 10),
+                v.dirTag || '',
+                v.leadingVehicleId || ''
+              ];
+            }
+            return t;
+          }, {})
+        });
         if (selectedIndex !== 0) {
-          selectedIndex += documentsToAdd.length;
+          ++selectedIndex;
         }
         updateUI();
       }
@@ -314,8 +330,8 @@ function moveForward() {
   } else {
     window.clearInterval(buttonTimer);
     window.clearInterval(fetchTimer);
-    fetchNewestDocument();
-    fetchTimer = window.setInterval(fetchNewestDocument, 30000);
+    fetchLiveSnapshot();
+    fetchTimer = window.setInterval(fetchLiveSnapshot, 30000);
   }
 }
 
