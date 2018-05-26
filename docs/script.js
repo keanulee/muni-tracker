@@ -184,7 +184,11 @@ const routeColors = {
   'L': '#660099',
   'M': '#006633',
   'N': '#003399',
-  'S': '#ffcc00'
+  'S': '#ffcc00',
+  'KJ': '#cc0033',
+  'LBUS': '#660099',
+  'MBUS': '#006633',
+  'SBUS': '#ffcc00',
 };
 
 function updateUI() {
