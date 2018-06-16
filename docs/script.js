@@ -11,6 +11,13 @@ let viewSelect;
 let fetchTimer;
 let buttonTimer;
 
+const infoMsg = `Legend:
+Star - LRV4
+Circle - Bus shuttle
+Faded - Trailing vehicle
+
+Homescreen icon made by Freepik from www.flaticon.com is licensed by CC 3.0 BY`;
+
 function initMap() {
   map = new google.maps.Map(document.getElementById('map'), {
     zoom: 12,
@@ -161,7 +168,7 @@ function initMap() {
   timePicker.addEventListener('change', timePickerChangeHandler);
 
   infoButton.addEventListener('click', () => {
-    window.alert('Homescreen icon made by Freepik from www.flaticon.com is licensed by CC 3.0 BY');
+    window.alert(infoMsg);
   });
 
   infowindow = new google.maps.InfoWindow();
@@ -245,6 +252,10 @@ function updateUI() {
       ];
     }
 
+    const svg =
+      id[0] === '2' ? 'M -2,5 0,0 2,5 M 6,-3.5 6,3.5 M 3,-2 9,2 M 9,-2 3,2' :
+      t[0].length === 4 ? 'M -2,5 0,0 2,5 M 3,0 a 1,1 0 1,0 2,0 a 1,1 0 1,0 -2,0' :
+      'M -2,5 0,0 2,5';
     line.setOptions({
       path: path.map(point => google.maps.geometry.spherical.computeOffset(point, 20, (heading + 90) % 360)),
       strokeColor: strokeColor,
@@ -256,7 +267,7 @@ function updateUI() {
             fillOpacity: t[7] ? 0 : 0.5,
             strokeColor: routeColors[t[0]] || '#000',
             strokeOpacity: t[7] ? 0.5 : 1,
-            path: id[0] === '2' ? 'M -2,5 0,0 2,5 M 6,-3.5 6,3.5 M 3,-2 9,2 M 9,-2 3,2' : google.maps.SymbolPath.FORWARD_OPEN_ARROW,
+            path: svg,
             scale: 2,
             rotation: t[2] - heading
           }
