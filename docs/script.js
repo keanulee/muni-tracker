@@ -1,22 +1,42 @@
 'use strict';
 
-const host = 'https://muni-tracker-api.keanulee.com';
-
-let map;
-let infowindow;
-let documents = [];
-let selectedIndex = 0;
-let nextPageToken;
-let viewSelect;
-let fetchTimer;
-let buttonTimer;
-
-const infoMsg = `Legend:
+const HOST = 'https://muni-tracker-api.keanulee.com';
+const INFO_MSG = `Legend:
 Star - LRV4
 Circle - Bus shuttle
 Faded - Trailing vehicle
 
 Homescreen icon made by Freepik from www.flaticon.com is licensed by CC 3.0 BY`;
+const SNAPSHOT = {
+  TIME: 'd',
+  TRAINS: 't'
+};
+const TRAIN = {
+  ROUTE_TAG: 0,
+  COORDS: 1,
+  HEADING: 2,
+  SPEED_KM_HR: 3,
+  PREDICTABLE: 4,
+  SECS_SINCE_REPORT: 5,
+  DIR_TAG: 6,
+  LEADING_VEHICLE_ID: 7
+};
+const COORDS = {
+  LAT: 0,
+  LNG: 1
+};
+
+let map;
+let infowindow;
+let viewSelect;
+let fetchTimer;
+let buttonTimer;
+let state = {
+  nextPageToken: null,
+  selectedIndex: 0,
+  snapshots: []
+};
+
 
 function initMap() {
   map = new google.maps.Map(document.getElementById('map'), {
@@ -168,16 +188,19 @@ function initMap() {
   timePicker.addEventListener('change', timePickerChangeHandler);
 
   infoButton.addEventListener('click', () => {
-    window.alert(infoMsg);
+    window.alert(INFO_MSG);
   });
 
   infowindow = new google.maps.InfoWindow();
 
-  fetch(`${host}/t?pageSize=30&orderBy=d%20desc`)
+  fetch(`${HOST}/t?pageSize=30&orderBy=d%20desc`)
     .then(res => res.json())
     .then(data => {
-      documents = data.documents;
-      nextPageToken = data.nextPageToken;
+      state = {
+        ...state,
+        nextPageToken: data.nextPageToken,
+        snapshots: data.documents
+      };
       updateUI();
     });
 
@@ -200,10 +223,10 @@ const routeColors = {
 };
 
 function updateUI() {
-  const document = documents[selectedIndex];
-  const prevDocument = documents[selectedIndex + 1];
-  const trains = document.t;
-  const prevTrains = prevDocument ? prevDocument.t : {};
+  const snapshot = state.snapshots[state.selectedIndex];
+  const prevSnapshot = state.snapshots[state.selectedIndex + 1];
+  const trains = snapshot[SNAPSHOT.TRAINS];
+  const prevTrains = prevSnapshot ? prevSnapshot[SNAPSHOT.TRAINS] : {};
   const oldLines = Object.assign({}, lines);
 
   for (let id in trains) {
@@ -217,59 +240,66 @@ function updateUI() {
       });
     }
 
-    const t = trains[id];
-    const currentPosition = new google.maps.LatLng({ lat: t[1][0], lng: t[1][1] });
+    const train = trains[id];
+    const currentPosition = new google.maps.LatLng({
+      lat: train[TRAIN.COORDS][COORDS.LAT],
+      lng: train[TRAIN.COORDS][COORDS.LNG]
+    });
     const positionsSelected = viewSelect.children[0].selected;
     const trafficSelected = viewSelect.children[1].selected;
-    const prevT = prevTrains[id];
-    let heading = t[2];
+    const prevTrain = prevTrains[id];
+    let pathHeading = train[TRAIN.HEADING];
     let path;
     let strokeColor = 'transparent';
     let strokeWeight = 4;
-    if (trafficSelected && prevT) {
-      const prevPosition = new google.maps.LatLng({ lat: prevT[1][0], lng: prevT[1][1] });
+    if (trafficSelected && prevTrain) {
+      const prevPosition = new google.maps.LatLng({
+        lat: prevTrain[TRAIN.COORDS][COORDS.LAT],
+        lng: prevTrain[TRAIN.COORDS][COORDS.LNG]
+      });
       path = [
         prevPosition,
         currentPosition
       ];
       const distance = google.maps.geometry.spherical.computeLength(path);
       if (distance > 0) {
-        const time = document.d - t[5] - prevDocument.d + prevT[5];
+        const time = snapshot[SNAPSHOT.TIME] - train[TRAIN.SECS_SINCE_REPORT] -
+            prevSnapshot[SNAPSHOT.TIME] + prevTrain[TRAIN.SECS_SINCE_REPORT];
         const speedFactor = Math.min(7.5, distance/time);
         strokeColor = `hsl(${speedFactor * 20}, 100%, 40%)`;
         strokeWeight = Math.max(4, Math.min(7.5 / speedFactor, 10));
-        heading = google.maps.geometry.spherical.computeHeading(prevPosition, currentPosition);
+        pathHeading = google.maps.geometry.spherical.computeHeading(prevPosition, currentPosition);
       } else {
         path = [
-          google.maps.geometry.spherical.computeOffset(currentPosition, 20, (heading + 180) % 360),
+          google.maps.geometry.spherical.computeOffset(currentPosition, 20, (pathHeading + 180) % 360),
           currentPosition
         ];
       }
     } else {
       path = [
-        google.maps.geometry.spherical.computeOffset(currentPosition, 20, (heading + 180) % 360),
+        google.maps.geometry.spherical.computeOffset(currentPosition, 20, (pathHeading + 180) % 360),
         currentPosition
       ];
     }
 
     const svg =
       id[0] === '2' ? 'M -2,5 0,0 2,5 M 6,-3.5 6,3.5 M 3,-2 9,2 M 9,-2 3,2' :
-      t[0].length === 4 ? 'M -2,5 0,0 2,5 M 3,0 a 1,1 0 1,0 2,0 a 1,1 0 1,0 -2,0' :
+      train[TRAIN.ROUTE_TAG].length === 4 ? 'M -2,5 0,0 2,5 M 3,0 a 1,1 0 1,0 2,0 a 1,1 0 1,0 -2,0' :
       'M -2,5 0,0 2,5';
     line.setOptions({
-      path: path.map(point => google.maps.geometry.spherical.computeOffset(point, 20, (heading + 90) % 360)),
+      path: path.map(point => google.maps.geometry.spherical.computeOffset(point, 20, (pathHeading + 90) % 360)),
       strokeColor: strokeColor,
       strokeWeight: strokeWeight,
       icons: positionsSelected ? [
         {
           icon: {
-            fillColor: routeColors[t[0]] || '#000',
-            fillOpacity: t[7] ? 0 : 0.5,
-            strokeColor: routeColors[t[0]] || '#000',
-            strokeOpacity: t[7] ? 0.5 : 1,
+            fillColor: routeColors[train[TRAIN.ROUTE_TAG]] || '#000',
+            fillOpacity: train[TRAIN.LEADING_VEHICLE_ID] ? 0 : 0.5,
+            strokeColor: routeColors[train[TRAIN.ROUTE_TAG]] || '#000',
+            strokeOpacity: train[TRAIN.LEADING_VEHICLE_ID] ? 0.5 : 1,
             path: svg,
             scale: 2,
-            rotation: t[2] - heading
+            rotation: train[TRAIN.HEADING] - pathHeading
           }
         }
       ] : []
@@ -281,11 +311,11 @@ function updateUI() {
     delete lines[id];
   }
 
-  timePicker.innerHTML = documents.map(doc => {
-    const date = new Date(doc.d * 1000);
+  timePicker.innerHTML = state.snapshots.map(snapshot => {
+    const date = new Date(snapshot[SNAPSHOT.TIME] * 1000);
     return `<option>${date.toTimeString().slice(0,8)}</option>`;
   });
-  timePicker.selectedIndex = selectedIndex;
+  timePicker.selectedIndex = state.selectedIndex;
 }
 
 function fetchLiveSnapshot() {
@@ -293,55 +323,71 @@ function fetchLiveSnapshot() {
     .then(res => res.json())
     .then(data => {
       if (data.vehicle) {
-        documents.unshift({
-          d: Math.round(parseInt(data.lastTime.time, 10) / 1000),
-          t: data.vehicle.reduce((t, v) => {
-            if (routeColors[v.routeTag]) {
-              t[v.id] = [
-                v.routeTag, 
-                [parseFloat(v.lat), parseFloat(v.lon)],
-                parseInt(v.heading, 10),
-                parseFloat(v.speedKmHr),
-                v.predictable === 'true',
-                parseInt(v.secsSinceReport, 10),
-                v.dirTag || '',
-                v.leadingVehicleId || ''
-              ];
-            }
-            return t;
-          }, {})
-        });
-        if (selectedIndex !== 0) {
-          ++selectedIndex;
+        const time = Math.round(parseInt(data.lastTime.time, 10) / 1000);
+        if (time !== state.snapshots[0][SNAPSHOT.TIME]) {
+          state = {
+            ...state,
+            selectedIndex: state.selectedIndex === 0 ? 0 : state.selectedIndex + 1,
+            snapshots: [
+              {
+                [SNAPSHOT.TIME]: time,
+                [SNAPSHOT.TRAINS]: data.vehicle.reduce((t, v) => {
+                  if (routeColors[v.routeTag]) {
+                    t[v.id] = [
+                      v.routeTag, 
+                      [parseFloat(v.lat), parseFloat(v.lon)],
+                      parseInt(v.heading, 10),
+                      parseFloat(v.speedKmHr),
+                      v.predictable === 'true',
+                      parseInt(v.secsSinceReport, 10),
+                      v.dirTag || '',
+                      v.leadingVehicleId || ''
+                    ];
+                  }
+                  return t;
+                }, {})
+              },
+              ...state.snapshots
+            ]
+          };
+          updateUI();
         }
-        updateUI();
       }
     });
 }
 
-function fetchPreviousDocuments() {
-  if (selectedIndex === documents.length - 1) {
-    fetch(`${host}/t?pageSize=30&orderBy=d%20desc&pageToken=${nextPageToken}`)
+function fetchPreviousSnapshots() {
+  if (state.selectedIndex === state.snapshots.length - 1) {
+    fetch(`${HOST}/t?pageSize=30&orderBy=d%20desc&pageToken=${state.nextPageToken}`)
     .then(res => res.json())
     .then(data => {
-      documents.push(...data.documents);
-      nextPageToken = data.nextPageToken;
+      state = {
+        ...state,
+        nextPageToken: data.nextPageToken,
+        snapshots: [...state.snapshots, ...data.documents]
+      };
       updateUI();
     });
   }
 }
 
 function moveBack() {
-  if (selectedIndex < documents.length - 1) {
-    ++selectedIndex;
+  if (state.selectedIndex < state.snapshots.length - 1) {
+    state = {
+      ...state,
+      selectedIndex: state.selectedIndex + 1
+    };
     updateUI();
-    fetchPreviousDocuments();
+    fetchPreviousSnapshots();
   }
 }
 
 function moveForward() {
-  if (selectedIndex > 0) {
-    --selectedIndex;
+  if (state.selectedIndex > 0) {
+    state = {
+      ...state,
+      selectedIndex: state.selectedIndex - 1
+    };
     updateUI();
   } else {
     window.clearInterval(buttonTimer);
@@ -353,12 +399,14 @@ function moveForward() {
 
 function backButtonDownHandler(e) {
   e.preventDefault();
+  window.clearInterval(buttonTimer);
   buttonTimer = window.setInterval(moveBack, 500);
   moveBack();
 }
 
 function forwardButtonDownHandler(e) {
   e.preventDefault();
+  window.clearInterval(buttonTimer);
   buttonTimer = window.setInterval(moveForward, 500);
   moveForward();
 }
@@ -369,9 +417,12 @@ function buttonUpHandler(e) {
 }
 
 function timePickerChangeHandler() {
-  selectedIndex = timePicker.selectedIndex;
+  state = {
+    ...state,
+    selectedIndex: timePicker.selectedIndex
+  };
   updateUI();
-  fetchPreviousDocuments();
+  fetchPreviousSnapshots();
 }
 
 if ('serviceWorker' in window.navigator) {
