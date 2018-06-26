@@ -3,7 +3,7 @@
 const HOST = 'https://muni-tracker-api.keanulee.com';
 const INFO_MSG = `Legend:
 Star - LRV4
-Circle - Bus shuttle
+Short arrow - Bus shuttle
 Faded - Trailing vehicle
 
 Homescreen icon made by Freepik from www.flaticon.com is licensed by CC 3.0 BY`;
@@ -284,7 +284,7 @@ function updateUI() {
 
     const svg =
       id[0] === '2' ? 'M -2,5 0,0 2,5 M 6,-3.5 6,3.5 M 3,-2 9,2 M 9,-2 3,2' :
-      train[TRAIN.ROUTE_TAG].length === 4 ? 'M -2,5 0,0 2,5 M 3,0 a 1,1 0 1,0 2,0 a 1,1 0 1,0 -2,0' :
+      train[TRAIN.ROUTE_TAG].length === 4 ? 'M -2,3 0,0 2,3' :
       'M -2,5 0,0 2,5';
     line.setOptions({
       path: path.map(point => google.maps.geometry.spherical.computeOffset(point, 20, (pathHeading + 90) % 360)),
