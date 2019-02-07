@@ -11,7 +11,7 @@
  * See https://goo.gl/2aRDsh
  */
 
-importScripts("https://storage.googleapis.com/workbox-cdn/releases/3.0.1/workbox-sw.js");
+importScripts("https://storage.googleapis.com/workbox-cdn/releases/3.6.3/workbox-sw.js");
 
 /**
  * The workboxSW.precacheAndRoute() method efficiently caches and responds to
@@ -21,11 +21,11 @@ importScripts("https://storage.googleapis.com/workbox-cdn/releases/3.0.1/workbox
 self.__precacheManifest = [
   {
     "url": "index.html",
-    "revision": "a0e1f6f3f47e24c75fd8c047bbab7fc3"
+    "revision": "0a93cb85af86233e657046e3d9468e5a"
   },
   {
     "url": "script.js",
-    "revision": "8ab3c2bb4aff230a2e7944c6778ab6d9"
+    "revision": "c6909f3a8e1955765551a84bdd2e0c5a"
   },
   {
     "url": "style.css",
