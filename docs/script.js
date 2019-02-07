@@ -217,9 +217,13 @@ const routeColors = {
   'S': '#ffcc00',
   'T': '#cc0033',
   'KJ': '#cc6600',
+  'JBUS': '#cc6600',
+  'KBUS': '#cc0033',
   'LBUS': '#660099',
   'MBUS': '#006633',
+  'NBUS': '#003399',
   'SBUS': '#ffcc00',
+  'TBUS': '#cc0033',
 };
 
 function updateUI() {
