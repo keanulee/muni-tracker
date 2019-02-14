@@ -32,7 +32,7 @@ let viewSelect;
 let fetchTimer;
 let buttonTimer;
 let state = {
-  nextPageToken: null,
+  nextPageToken: '',
   selectedIndex: 0,
   snapshots: []
 };
@@ -327,8 +327,9 @@ function fetchLiveSnapshot() {
     .then(res => res.json())
     .then(data => {
       if (data.vehicle) {
+        const latestSnapshot = state.snapshots[0];
         const time = Math.round(parseInt(data.lastTime.time, 10) / 1000);
-        if (time !== state.snapshots[0][SNAPSHOT.TIME]) {
+        if (!latestSnapshot || time !== latestSnapshot[SNAPSHOT.TIME]) {
           state = {
             ...state,
             selectedIndex: state.selectedIndex === 0 ? 0 : state.selectedIndex + 1,
