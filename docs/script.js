@@ -210,13 +210,15 @@ function initMap() {
 const lines = {};
 const routeColors = {
   'J': '#cc6600',
+  'KJ': '#cc6600',
   'KT': '#cc0033',
   'L': '#660099',
+  'LK': '#660099',
   'M': '#006633',
   'N': '#003399',
   'S': '#ffcc00',
   'T': '#cc0033',
-  'KJ': '#cc6600',
+  'TM': '#cc0033',
   'JBUS': '#cc6600',
   'KBUS': '#cc0033',
   'LBUS': '#660099',
