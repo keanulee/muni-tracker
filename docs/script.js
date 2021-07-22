@@ -1,6 +1,5 @@
 'use strict';
 
-const HOST = 'https://muni-tracker-api.keanulee.com';
 const INFO_MSG = `Legend:
 Star - LRV4
 Short arrow - Bus shuttle
@@ -193,16 +192,7 @@ function initMap() {
 
   infowindow = new google.maps.InfoWindow();
 
-  fetch(`${HOST}/t?pageSize=30&orderBy=d%20desc`)
-    .then(res => res.json())
-    .then(data => {
-      state = {
-        ...state,
-        nextPageToken: data.nextPageToken,
-        snapshots: data.documents
-      };
-      updateUI();
-    });
+  fetchLiveSnapshot();
 
   fetchTimer = window.setInterval(fetchLiveSnapshot, 30000);
 }
@@ -325,7 +315,7 @@ function updateUI() {
 }
 
 function fetchLiveSnapshot() {
-  fetch('https://test.nextbus.com/service/publicJSONFeed?command=vehicleLocations&a=sf-muni')
+  fetch('https://retro.umoiq.com/service/publicJSONFeed?command=vehicleLocations&a=sf-muni')
     .then(res => res.json())
     .then(data => {
       if (data.vehicle) {
@@ -363,21 +353,6 @@ function fetchLiveSnapshot() {
     });
 }
 
-function fetchPreviousSnapshots() {
-  if (state.selectedIndex === state.snapshots.length - 1) {
-    fetch(`${HOST}/t?pageSize=30&orderBy=d%20desc&pageToken=${state.nextPageToken}`)
-    .then(res => res.json())
-    .then(data => {
-      state = {
-        ...state,
-        nextPageToken: data.nextPageToken,
-        snapshots: [...state.snapshots, ...data.documents]
-      };
-      updateUI();
-    });
-  }
-}
-
 function moveBack() {
   if (state.selectedIndex < state.snapshots.length - 1) {
     state = {
@@ -385,7 +360,6 @@ function moveBack() {
       selectedIndex: state.selectedIndex + 1
     };
     updateUI();
-    fetchPreviousSnapshots();
   }
 }
 
@@ -429,7 +403,6 @@ function timePickerChangeHandler() {
     selectedIndex: timePicker.selectedIndex
   };
   updateUI();
-  fetchPreviousSnapshots();
 }
 
 if ('serviceWorker' in window.navigator) {
